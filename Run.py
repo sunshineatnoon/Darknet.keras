@@ -1,5 +1,4 @@
 import os
-from utils.Convolution2D import convol
 import numpy as np
 from utils.readImgFile import readImg
 from utils.PythonReader import ReadGoogleNetWeights
@@ -48,7 +47,7 @@ def get_activations(model, layer, X_batch):
     return activations
 
 #image = readImg(os.path.join(os.getcwd(),'images/dog.file'))
-image = crop(os.path.join(os.getcwd(),'images/eagle.jpg'))
+image = crop(os.path.join(os.getcwd(),'images/dog.jpg'))
 image = np.expand_dims(image, axis=0)
 
 googleNet = ReadGoogleNetWeights(os.path.join(os.getcwd(),'weights/extraction.weights'))
