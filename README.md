@@ -1,4 +1,4 @@
-# YOLO.keras
+# Darknet.keras
 This is a transfer from weights trained by [Darknet](http://pjreddie.com/darknet/) to [keras](http://keras.io/) with Theano backend.
 
 Currently I only transfered weigths of the [extraction net](https://github.com/pjreddie/darknet/blob/master/cfg/extraction.cfg).
