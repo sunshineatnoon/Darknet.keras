@@ -10,6 +10,7 @@ from keras.optimizers import SGD
 from keras.layers.advanced_activations import LeakyReLU
 import theano
 from keras.layers.core import Flatten, Dense, Activation
+from keras.utils.visualize_util import plot
 
 def SimpleNet(googleNet):
     model = Sequential()
@@ -62,7 +63,6 @@ for i in range(googleNet.layer_number):
         l.weights = weight_array
     if(l.type == 'CONNECTED'):
         weight_array = l.weights
-        #weight_array = np.reshape(weight_array,[l.input_size,l.output_size])
         weight_array = np.reshape(weight_array,[l.output_size,l.input_size])
         weight_array = weight_array.transpose()
         l.weights = weight_array
@@ -74,6 +74,14 @@ sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(optimizer=sgd, loss='categorical_crossentropy')
 out = model.predict(image)
 prediction = out[0]
+plot(model, to_file='model.png')
+
+out1 = get_activations(model, 64, image)
+out2 = get_activations(model, 65, image)
+out3 = get_activations(model, 66, image)
+print out1.shape
+print out2.shape
+print out3.shape
 
 #output first five predicted labels
 f = open(os.getcwd()+'/images/shortnames.txt')
