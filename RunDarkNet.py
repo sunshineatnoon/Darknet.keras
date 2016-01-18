@@ -11,6 +11,7 @@ from keras.layers.advanced_activations import LeakyReLU
 import theano
 from keras.layers.core import Flatten, Dense, Activation, Reshape
 
+theano.config.optimizer = 'fast_compile'
 def SimpleNet(darkNet):
     model = Sequential()
 
@@ -21,7 +22,7 @@ def SimpleNet(darkNet):
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
     #Use a for loop to replace all manually defined layers
-    for i in range(3,15):
+    for i in range(3,17):
         l = darkNet.layers[i]
         if(l.type == "CONVOLUTIONAL"):
             model.add(ZeroPadding2D(padding=(l.size//2,l.size//2,)))
@@ -33,11 +34,10 @@ def SimpleNet(darkNet):
             else:
                 model.add(MaxPooling2D(pool_size=(2, 2),border_mode='valid'))
         elif(l.type == "AVGPOOL"):
-            model.add(AveragePooling2D(pool_size=(4,4),strides=(4,4),border_mode='valid'))
-            #In this particular model, feature output by avg pooling needs to be flattened. TODO:Use a better way to indicate there is a flatten layer
+            model.add(AveragePooling2D(pool_size=(4,4),strides=(4,4)))
             model.add(Flatten())
         elif(l.type == "CONNECTED"):
-            model.add(Dense(l.output_size, weights=[l.weights,l.biases],input_dim=1024))
+            model.add(Dense(l.output_size, weights=[l.weights,l.biases]))
             model.add(LeakyReLU(alpha=0.1))
         elif(l.type == "SOFTMAX"):
             model.add(Activation('softmax'))
@@ -50,8 +50,8 @@ def get_activations(model, layer, X_batch):
     activations = get_activations(X_batch) # same result as above
     return activations
 
-image = readImg(os.path.join(os.getcwd(),'images/dog.file'))
-#image = crop(os.path.join(os.getcwd(),'images/dog.jpg'))
+#image = readImg(os.path.join(os.getcwd(),'images/dog.file'))
+image = crop(os.path.join(os.getcwd(),'images/eagle.jpg'))
 image = np.expand_dims(image, axis=0)
 
 darkNet = ReadDarkNetWeights(os.path.join(os.getcwd(),'weights/darknet.weights'))
@@ -66,8 +66,7 @@ for i in range(darkNet.layer_number):
         l.weights = weight_array
     if(l.type == 'CONNECTED'):
         weight_array = l.weights
-        weight_array = np.reshape(weight_array,[l.output_size,l.input_size])
-        weight_array = weight_array.transpose()
+        weight_array = np.reshape(weight_array,[l.input_size,l.output_size])
         l.weights = weight_array
 
 
@@ -77,11 +76,7 @@ sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(optimizer=sgd, loss='categorical_crossentropy')
 
 out = model.predict(image)
-avg_pool = out[0].transpose()
-
-l = darkNet.layers[15]
-prediction = np.dot(avg_pool,l.weights) + l.biases
-print prediction[0:10]
+prediction = out[0]
 
 #output first five predicted labels
 f = open(os.getcwd()+'/images/shortnames.txt')
@@ -91,13 +86,3 @@ for i in range(len(lines)): lines[i] = lines[i].strip("\n")
 indices = prediction.argsort()[-10:][::-1]
 for i in indices:
     print lines[i],": %f"%prediction[i]
-
-'''
-out1 = get_activations(model, 26, image)
-out2 = get_activations(model, 27, image)
-
-print out1.shape
-print out1[0,0,...,...]
-print out2.shape
-print out2[0,0:10]
-'''

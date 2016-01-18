@@ -63,7 +63,7 @@ def ReadDarkNetWeights(weight_path):
     #type_string = type_string + ",i1"
     dt = np.dtype(type_string)
     testArray = np.fromfile(weight_path,dtype=dt)
-    #print len(testArray[0])
+    print len(testArray[0])
     #write the weights read from file to GoogleNet biases and weights
 
     count = 2
@@ -73,12 +73,16 @@ def ReadDarkNetWeights(weight_path):
             l.biases = np.asarray(testArray[0][count])
             count = count + 1
             l.weights = np.asarray(testArray[0][count])
-            count = count+1
+            count = count + 1
             darkNet.layers[i] = l
+            if(l.type == 'CONNECTED'):
+                weight_array = l.weights
+                weight_array = np.reshape(weight_array,[l.input_size,l.output_size])
+                weight_array = weight_array.transpose()
             #print i,count
 
     #write back to file and see if it is the same
-    '''
+
     write_fp = open('reconstruct.weights','w')
     write_fp.write((np.asarray(testArray[0][0])).tobytes())
     write_fp.write((np.asarray(testArray[0][1])).tobytes())
@@ -88,8 +92,9 @@ def ReadDarkNetWeights(weight_path):
             write_fp.write(l.biases.tobytes())
             write_fp.write(l.weights.tobytes())
 
+
     write_fp.close()
-    '''
+
     return darkNet
 
 if __name__ == '__main__':
@@ -97,3 +102,5 @@ if __name__ == '__main__':
     for i in range(darkNet.layer_number):
         l = darkNet.layers[i]
         print l.type
+        if(l.type == 'CONNECTED'):
+            print l.weights.shape
