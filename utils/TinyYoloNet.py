@@ -23,55 +23,35 @@ class connected_layer(layer):
         self.output_size = output_size
         self.input_size = input_size
 
-class YOLONet:
+class Tiny_YOLO:
     layers = []
-    layer_number = 29
+    layer_number = 18
     def __init__(self):
         self.layers.append(layer(0,0,0,0,0,"CROP"))
-        self.layers.append(convolutional_layer(7,3,64,448,448))
+        self.layers.append(convolutional_layer(3,3,16,224,224))
         self.layers.append(layer(0,0,0,0,0,"MAXPOOL"))
-        self.layers.append(convolutional_layer(3,64,192,56,56))
+        self.layers.append(convolutional_layer(3,16,32,112,112))
         self.layers.append(layer(0,0,0,0,0,"MAXPOOL"))
-        self.layers.append(convolutional_layer(1,192,128,28,28))
-        self.layers.append(convolutional_layer(3,128,256,28,28))
-        self.layers.append(convolutional_layer(1,256,256,28,28))
-        self.layers.append(convolutional_layer(3,256,512,28,28))
+        self.layers.append(convolutional_layer(3,32,64,56,56))
         self.layers.append(layer(0,0,0,0,0,"MAXPOOL"))
-        self.layers.append(convolutional_layer(1,512,256,14,14))
-        self.layers.append(convolutional_layer(3,256,512,14,14))
-        self.layers.append(convolutional_layer(1,512,256,14,14))
-        self.layers.append(convolutional_layer(3,256,512,14,14))
-        self.layers.append(convolutional_layer(1,512,256,14,14))
-        self.layers.append(convolutional_layer(3,256,512,14,14))
-        self.layers.append(convolutional_layer(1,512,256,14,14))
-        self.layers.append(convolutional_layer(3,256,512,14,14))
-        self.layers.append(convolutional_layer(1,512,512,14,14))
-        self.layers.append(convolutional_layer(3,512,1024,14,14))
+        self.layers.append(convolutional_layer(3,64,128,28,28))
         self.layers.append(layer(0,0,0,0,0,"MAXPOOL"))
-        self.layers.append(convolutional_layer(1,1024,512,7,7))
-        self.layers.append(convolutional_layer(3,512,1024,7,7))
-        self.layers.append(convolutional_layer(1,1024,512,7,7))
-        self.layers.append(convolutional_layer(3,512,1024,7,7))
-        #yet another four layer of Convolution
-        self.layers.append(convolutional_layer(3,1024,1024,3,3))
-        self.layers.append(convolutional_layer(3,1024,1024,3,3))
-        self.layers.append(convolutional_layer(3,1024,1024,3,3))
-        self.layers.append(convolutional_layer(3,1024,1024,3,3))
-
-        self.layers.append(connected_layer(0,0,0,0,0,1024,4096))
+        self.layers.append(convolutional_layer(3,128,256,14,14))
+        self.layers.append(layer(0,0,0,0,0,"MAXPOOL"))
+        self.layers.append(convolutional_layer(3,256,512,7,7))
+        self.layers.append(layer(0,0,0,0,0,"MAXPOOL"))
+        self.layers.append(convolutional_layer(3,512,1024,4,4))
+        self.layers.append(convolutional_layer(3,1024,1024,4,4))
+        self.layers.append(convolutional_layer(3,2014,1024,4,4))
+        self.layers.append(connected_layer(0,0,0,0,0,1024,256))
+        self.layers.append(connected_layer(0,0,0,0,0,256,4096))
         self.layers.append(connected_layer(0,0,0,0,0,4096,1470))
-        '''
-        self.layers.append(layer(0,0,0,0,0,"AVGPOOL"))
-        self.layers.append(connected_layer(0,0,0,0,0,1024,1000))
-        self.layers.append(layer(0,0,0,0,0,"SOFTMAX"))
-        self.layers.append(layer(0,0,0,0,0,"COST"))
-        '''
 
-def ReadYOLONetWeights(weight_path):
-    yoloNet = YOLONet()
+def ReadTinyYOLONetWeights(weight_path):
+    YOLO = Tiny_YOLO()
     type_string = "(3)float32,i4,"
-    for i in range(googleNet.layer_number):
-        l = googleNet.layers[i]
+    for i in range(YOLO.layer_number):
+        l = YOLO.layers[i]
         if(l.type == "CONVOLUTIONAL"):
             bias_number = l.n
             weight_number = l.n*l.c*l.size*l.size
@@ -84,31 +64,44 @@ def ReadYOLONetWeights(weight_path):
     #type_string = type_string + ",i1"
     dt = np.dtype(type_string)
     testArray = np.fromfile(weight_path,dtype=dt)
-    #print len(testArray[0])
+    print len(testArray[0])
     #write the weights read from file to GoogleNet biases and weights
 
     count = 2
-    for i in range(0,googleNet.layer_number):
-        l = googleNet.layers[i]
+    for i in range(0,YOLO.layer_number):
+        l = darkNet.layers[i]
         if(l.type == "CONVOLUTIONAL" or l.type == "CONNECTED"):
             l.biases = np.asarray(testArray[0][count])
             count = count + 1
             l.weights = np.asarray(testArray[0][count])
-            count = count+1
-            googleNet.layers[i] = l
+            count = count + 1
+            darkNet.layers[i] = l
+            if(l.type == 'CONNECTED'):
+                weight_array = l.weights
+                weight_array = np.reshape(weight_array,[l.input_size,l.output_size])
+                weight_array = weight_array.transpose()
             #print i,count
 
     #write back to file and see if it is the same
-    '''
+
     write_fp = open('reconstruct.weights','w')
     write_fp.write((np.asarray(testArray[0][0])).tobytes())
     write_fp.write((np.asarray(testArray[0][1])).tobytes())
-    for i in range(0,googleNet.layer_number):
-        l = googleNet.layers[i]
+    for i in range(0,YOLO.layer_number):
+        l = YOLO.layers[i]
         if(l.type == "CONVOLUTIONAL" or l.type == "CONNECTED"):
             write_fp.write(l.biases.tobytes())
             write_fp.write(l.weights.tobytes())
 
+
     write_fp.close()
-    '''
-    return googleNet
+
+    return darkNet
+
+if __name__ == '__main__':
+    YOLO = ReadTinyYOLONetWeights('/home/xuetingli/Documents/YOLO.keras/weights/darknet.weights')
+    for i in range(YOLO.layer_number):
+        l = YOLO.layers[i]
+        print l.type
+        if(l.type == 'CONNECTED'):
+            print l.weights.shape
