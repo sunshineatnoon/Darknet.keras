@@ -27,7 +27,7 @@ class connected_layer(layer):
 
 class Tiny_YOLO:
     layers = []
-    layer_number = 20
+    layer_number = 21
     def __init__(self):
         self.layers.append(layer(0,0,0,0,0,"CROP"))
         self.layers.append(convolutional_layer(3,3,16,448,448))
@@ -48,6 +48,7 @@ class Tiny_YOLO:
         self.layers.append(layer(0,0,0,0,0,"FLATTEN"))
         self.layers.append(connected_layer(0,0,0,0,0,50176,256))
         self.layers.append(connected_layer(0,0,0,0,0,256,4096))
+        self.layers.append(layer(0,0,0,0,0,"LEAKY"))
         self.layers.append(connected_layer(0,0,0,0,0,4096,1470))
 
 def ReadTinyYOLONetWeights(weight_path):
