@@ -95,7 +95,7 @@ def convert_yolo_detections(predictions,classes=20,num=2,square=True,side=7,w=1,
     return boxes
 
 def prob_compare(boxa,boxb):
-    if(boxa.probs[boxa.class_num] > boxb.probs[boxb.class_num]):
+    if(boxa.probs[boxa.class_num] < boxb.probs[boxb.class_num]):
         return 1
     elif(boxa.probs[boxa.class_num] == boxb.probs[boxb.class_num]):
         return 0
@@ -113,7 +113,7 @@ def do_nms_sort(boxes,total,classes=20,thresh=0.5):
             boxa = sorted_boxes[i]
             for j in range(i+1,total):
                 boxb = sorted_boxes[j]
-                if(box_iou(boxa,boxb) > thresh):
+                if(boxb.probs[k] != 0 and box_iou(boxa,boxb) > thresh):
                     boxb.probs[k] = 0
                     sorted_boxes[j] = boxb
     return sorted_boxes
@@ -167,6 +167,11 @@ def draw_detections(impath,num,thresh,boxes,classes,labels,save_name):
         prob = boxes[i].probs[max_class]
         if(prob > thresh):
             b = boxes[i]
+
+            temp = b.w
+            b.w = b.h
+            b.h = temp
+
             left  = (b.x-b.w/2.)*ImageSize[0];
             right = (b.x+b.w/2.)*ImageSize[0];
             top   = (b.y-b.h/2.)*ImageSize[1];
@@ -177,6 +182,7 @@ def draw_detections(impath,num,thresh,boxes,classes,labels,save_name):
             if(top < 0): top = 0;
             if(bot > ImageSize[1]-1): bot = ImageSize[1]-1;
 
+            print "The four cords are: ",left,right,top,bot
             drawable.rectangle([left,top,right,bot],outline="red")
             img.save(os.path.join(os.getcwd(),'results',save_name))
             print labels[max_class],": ",boxes[i].probs[max_class]
@@ -202,7 +208,21 @@ model = SimpleNet(yoloNet)
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(optimizer=sgd, loss='categorical_crossentropy')
+'''
+image = readImg(os.path.join(os.getcwd(),'Yolo_dog.img'),h=448,w=448)
+image = np.expand_dims(image, axis=0)
+out = model.predict(image)
+predictions = out[0]
+boxes = convert_yolo_detections(predictions)
+boxes = do_nms_sort(boxes,98)
 
+for i in range(98):
+    for j in range(20):
+        if(boxes[i].probs[j] != 0):
+            print i,j
+            print boxes[i].probs[j]
+draw_detections(os.path.join(os.getcwd(),'images/dog.jpg'),98,0.2,boxes,20,labels,'dog.jpg')
+'''
 #for each image, we generate a detection result
 imagePath = os.path.join(os.getcwd(),'images')
 images = [f for f in listdir(imagePath) if isfile(join(imagePath, f))]
@@ -221,3 +241,4 @@ for image_name in images:
     boxes = do_nms_sort(boxes,98)
 
     draw_detections(os.path.join(imagePath,image_name),98,0.2,boxes,20,labels,image_name)
+    #draw_detections(os.path.join(os.getcwd(),'resized_images','1.jpg'),98,0.2,boxes,20,labels,image_name)
