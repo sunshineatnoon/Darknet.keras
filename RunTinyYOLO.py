@@ -16,6 +16,11 @@ import theano
 
 from PIL import Image
 from PIL import ImageDraw
+
+from os import listdir
+from os.path import isfile, join
+from utils.timer import Timer
+
 class box:
     def __init__(self,classes):
         self.x = 0
@@ -144,7 +149,7 @@ def box_union(a, b):
 def box_iou(a, b):
     return box_intersection(a, b)/box_union(a, b);
 
-def draw_detections(impath,num,thresh,boxes,classes):
+def draw_detections(impath,num,thresh,boxes,classes,labels,save_name):
     """
     Args:
         impath: The image path
@@ -173,12 +178,11 @@ def draw_detections(impath,num,thresh,boxes,classes):
             if(bot > ImageSize[1]-1): bot = ImageSize[1]-1;
 
             drawable.rectangle([left,top,right,bot],outline="red")
-            img.save(os.path.join(os.getcwd(),'dog_detect.jpg'))
+            img.save(os.path.join(os.getcwd(),'results',save_name))
+            print labels[max_class],": ",boxes[i].probs[max_class]
 
-image = readImg(os.path.join(os.getcwd(),'images/Yolo_dog.img'),h=448,w=448)
-#image = crop(os.path.join(os.getcwd(),'images/eagle.jpg'))
-image = np.expand_dims(image, axis=0)
-
+#image = readImg(os.path.join(os.getcwd(),'images/Yolo_dog.img'),h=448,w=448)
+labels = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train","tvmonitor"]
 yoloNet = ReadTinyYOLONetWeights(os.path.join(os.getcwd(),'weights/yolo-tiny.weights'))
 #reshape weights in every layer
 for i in range(yoloNet.layer_number):
@@ -194,16 +198,26 @@ for i in range(yoloNet.layer_number):
         weight_array = np.reshape(weight_array,[l.input_size,l.output_size])
         l.weights = weight_array
 
-
 model = SimpleNet(yoloNet)
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(optimizer=sgd, loss='categorical_crossentropy')
 
-out = model.predict(image)
+#for each image, we generate a detection result
+imagePath = os.path.join(os.getcwd(),'images')
+images = [f for f in listdir(imagePath) if isfile(join(imagePath, f))]
+for image_name in images:
+    timer = Timer()
+    image = crop(os.path.join(imagePath,image_name),resize_width=512,resize_height=512,new_width=448,new_height=448)
+    image = np.expand_dims(image, axis=0)
 
-predictions = out[0]
-boxes = convert_yolo_detections(predictions)
-boxes = do_nms_sort(boxes,98)
+    timer.tic()
+    out = model.predict(image)
+    timer.toc()
+    print ('Total time is {:.3f}s ').format(timer.total_time)
 
-draw_detections(os.path.join(os.getcwd(),'images/dog.jpg'),98,0.2,boxes,20)
+    predictions = out[0]
+    boxes = convert_yolo_detections(predictions)
+    boxes = do_nms_sort(boxes,98)
+
+    draw_detections(os.path.join(imagePath,image_name),98,0.2,boxes,20,labels,image_name)

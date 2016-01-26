@@ -3,14 +3,12 @@ import numpy as np
 from scipy import misc
 import os
 
-def crop(imPath):
+def crop(imPath,resize_width=256,resize_height=256,new_width=224,new_height=224):
     im = Image.open(imPath)
-    im = im.resize((256,256),Image.ANTIALIAS)
+    im = im.resize((resize_width,resize_height),Image.ANTIALIAS)
 
     #central crop 224,224
     width, height = im.size   # Get dimensions
-    new_width = 224
-    new_height = 224
 
     left = (width - new_width)/2
     top = (height - new_height)/2
