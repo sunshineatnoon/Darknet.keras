@@ -54,6 +54,8 @@ def SimpleNet(yoloNet):
             model.add(Dense(l.output_size, weights=[l.weights,l.biases]))
         elif(l.type == "LEAKY"):
             model.add(LeakyReLU(alpha=0.1))
+        elif(l.type == "DROPOUT"):
+            pass
         else:
             print "Error: Unknown Layer Type",l.type
     return model

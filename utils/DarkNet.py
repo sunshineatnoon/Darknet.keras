@@ -63,7 +63,6 @@ def ReadDarkNetWeights(weight_path):
     #type_string = type_string + ",i1"
     dt = np.dtype(type_string)
     testArray = np.fromfile(weight_path,dtype=dt)
-    print len(testArray[0])
     #write the weights read from file to GoogleNet biases and weights
 
     count = 2
