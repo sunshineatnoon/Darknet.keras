@@ -6,7 +6,7 @@ from utils.DarkNet import ReadDarkNetWeights
 from utils.TinyYoloNet import ReadTinyYOLONetWeights
 from utils.crop import crop
 from utils.timer import Timer
-from utils.ReadPascalVoc import generate_batch_data
+from utils.ReadPascalVoc2 import generate_batch_data
 
 from keras.models import Sequential
 from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2D, AveragePooling2D
@@ -63,6 +63,23 @@ def SimpleNet(darkNet,yoloNet):
             print "Error: Unknown Layer Type",l.type
     return model
 
+def custom_loss(y_true,y_pred):
+    lamb = 4
+    loss = 0.0
+
+    for i in range(49):
+        cord_loss = 0.0
+        class_loss = 0.0
+        if(y_pred[i*24] != 0):
+            #if this cell has objects
+            cord_loss = lamb * T.square(y_pred[i*24:i*24+4] - y_true[i*24:i*24+4]), axis=-1)
+        else:
+            #if this cell doesn't have objects
+            cord_loss = 0
+        class_loss = T.square(y_pred[i*24+4:i*24+24] - y_true[i*24+4:i*24+24])
+        loss = loss + class_loss + cord_loss
+    return loss
+
 
 darkNet = ReadDarkNetWeights(os.path.join(os.getcwd(),'weights/darknet.weights'))
 yoloNet = ReadTinyYOLONetWeights(os.path.join(os.getcwd(),'weights/yolo-tiny.weights'))
@@ -83,8 +100,8 @@ for i in range(darkNet.layer_number):
 model = SimpleNet(darkNet,yoloNet)
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
-model.compile(optimizer=sgd, loss='categorical_crossentropy')
+model.compile(optimizer=sgd, loss=custom_loss)
 
 vocPath= os.path.join(os.getcwd(),'dataset/train_val')
 imageNameFile= os.path.join(vocPath,'imageNames.txt')
-model.fit_generator(generate_batch_data(vocPath,imageNameFile,100),nb_epoch=10,show_accuracy=True)
+model.fit_generator(generate_batch_data(vocPath,imageNameFile),nb_epoch=10,show_accuracy=True)

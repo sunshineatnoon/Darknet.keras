@@ -4,6 +4,7 @@ from crop import crop
 import numpy as np
 
 vocPath = os.path.abspath(os.path.join(os.getcwd(),os.path.pardir,'dataset'))
+
 class objInfo():
     """
     objInfo saves the information of an object, including its class num, its cords
@@ -61,7 +62,7 @@ class image():
             ymin = int(bndbox.find('ymin').text)
             xmax = int(bndbox.find('xmax').text)
             ymax = int(bndbox.find('ymax').text)
-            objif = objInfo(xmin/448.0,ymin/448.0,np.sqrt(ymax-ymin)/(448.0),np.sqrt(xmax-xmin)/448.0,class_num)
+            objif = objInfo(xmin/448.0,ymin/448.0,np.sqrt(ymax-ymin)/448.0,np.sqrt(xmax-xmin).448.0,class_num)
 
             #which cell this obj falls into
             centerx = (xmax+xmin)/2
@@ -104,7 +105,7 @@ def prepareBatch(start,end,imageNameFile,vocPath):
     return imageList
 
 #Prepare training data
-def generate_batch_data(vocPath,imageNameFile,batchsize):
+def generate_batch_data(vocPath,imageNameFile):
     """
     Args:
       vocPath: the path of pascal voc data
@@ -114,41 +115,39 @@ def generate_batch_data(vocPath,imageNameFile,batchsize):
       A data generator generates training batch indefinitely
     """
     sample_number = 5000 #use only 5000 images so we have more batchsize choices
-    assert(sample_number%batchsize==0,"Sample Number shoule be divisible by batch size !")
+    class_num = 20
 
     while 1:
-        for i in range(0,sample_number,batchsize):
-            imageList = prepareBatch(i,i+batchsize,imageNameFile,vocPath)
+        for i in range(0,sample_number):
+            imageList = prepareBatch(i,i+1,imageNameFile,vocPath)
             image_list = []
             box_list = []
 
-            #generate image array
-            for imageInfo in imageList:
-                image_array = crop(imageInfo.imgPath,resize_width=512,resize_height=512,new_width=448,new_height=448)
-                image_list.append(image_array)
-                box_list.append(imageInfo.boxes)
-            images = np.asarray(image_list)
-            box_list = np.asarray(box_list)
-            
-            print images[0,0,0:10,0:10]
-            box = box_list[0]
+            image_array = crop(imageList[0].imgPath,resize_width=512,resize_height=512,new_width=448,new_height=448)
+
+            y = []
             for i in range(7):
                 for j in range(7):
-                    if(box[i][j].has_obj):
-                        print i,j
-                        objs = box[i][j].objs
-                        for obj in objs:
-                            print obj.class_num
-                            print obj.x
-                            print obj.y
-                            print
-            #return
+                    box = imageList[0].boxes[i][j]
+                    if(box.has_obj):
+                        obj = box.objs[0]
 
-            yield images,box_list
+                        y.append(obj.x)
+                        y.append(obj.y)
+                        y.append(obj.h)
+                        y.append(obj.w)
+
+                        labels = [0]*20
+                        labels[obj.class_num] = 1
+                        y.extend(labels)
+                    else:
+                        y.extend([0]*24)
+            y = np.asarray(y)
+            #yield images,y
 
 if __name__ == '__main__':
-    imageNameFile='/home/xuetingli/Documents/YOLO.keras/dataset/train_val/imageNames.txt'
-    vocPath='/home/xuetingli/Documents/YOLO.keras/dataset/train_val'
+    imageNameFile='/Users/lixueting/Documents/researches/Darknet.keras/dataset/train_val/imageNames.txt'
+    vocPath='/Users/lixueting/Documents/researches/Darknet.keras/dataset/train_val'
     '''
     imageList = prepareBatch(0,2,imageNameFile,vocPath)
     for i in range(0,2):
@@ -166,4 +165,4 @@ if __name__ == '__main__':
                         print obj.y
                         print
     '''
-    generate_batch_data(vocPath,imageNameFile,5)
+    generate_batch_data(vocPath,imageNameFile)
