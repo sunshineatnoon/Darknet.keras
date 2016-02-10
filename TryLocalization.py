@@ -62,36 +62,9 @@ def SimpleNet(darkNet,yoloNet):
             model.add(Dropout(0.5))
         else:
             print "Error: Unknown Layer Type",l.type
-        #model.add(Activation('sigmoid'))
+        model.add(Activation(sigmoid))
     return model
 
-def custom_loss(y_true,y_pred):
-    scale_vector = []
-    scale_vector.extend([2]*4)
-    scale_vector.extend([1]*20)
-    scale_vector.append(0)
-    scale_vector = scale_vector * 49
-    scale_vector = np.reshape(np.asarray(scale_vector),(1,len(scale_vector)))
-
-    #Only calculate cords loss here, so mask all classfication predictions to zeros
-    y_pred_masked = y_pred * scale_vector
-    y_true_maksed = y_true * scale_vector
-    #kick out all cells that don't have any objects
-    keep = y_true_maksed > 0
-    y_pred_cal = y_pred_masked * keep
-    loss = T.sum(T.square(y_true_maksed - y_pred_cal))
-
-    #prediction loss
-    scale_vector = []
-    scale_vector.extend([0]*24)
-    scale_vector.append(1)
-    scale_vector = scale_vector * 49
-    scale_vector = np.reshape(np.asarray(scale_vector),(1,len(scale_vector)))
-    #only calculate classification loss here so kick out all cords information
-    y_pred_classification = y_pred * scale_vector
-    y_true_classification = y_true * scale_vector
-    loss = loss + T.sum(T.square(y_pred_classification - y_true_classification))
-    return loss
 
 darkNet = ReadDarkNetWeights(os.path.join(os.getcwd(),'weights/darknet.weights'))
 yoloNet = ReadTinyYOLONetWeights(os.path.join(os.getcwd(),'weights/yolo-tiny.weights'))
@@ -112,12 +85,12 @@ for i in range(darkNet.layer_number):
 model = SimpleNet(darkNet,yoloNet)
 
 #sgd = SGD(lr=1e-4, decay=1e-6, momentum=0.9, nesterov=True)
-adam = Adam(lr=1e-4, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
-model.compile(optimizer=adam, loss=custom_loss)
+adam = Adam(lr=1e-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+model.compile(optimizer=adam, loss='mean_squared_error')
 
 vocPath= os.path.join(os.getcwd(),'dataset/train_val')
 imageNameFile= os.path.join(vocPath,'imageNames.txt')
-model.fit_generator(generate_batch_data(vocPath,imageNameFile,16),samples_per_epoch=315,nb_epoch=5,verbose=1)
+model.fit_generator(generate_batch_data(vocPath,imageNameFile),samples_per_epoch=5000,nb_epoch=5,verbose=1)
 #image = readImg(os.path.join(os.getcwd(),'Yolo_dog.img'),h=448,w=448)
 #image = np.expand_dims(image,axis=0)
 #out = model.predict(image)
@@ -125,4 +98,3 @@ model.fit_generator(generate_batch_data(vocPath,imageNameFile,16),samples_per_ep
 json_string = model.to_json()
 open('Tiny_Yolo_Architecture.json','w').write(json_string)
 model.save_weights('Tiny_Yolo_weights.h5')
-

@@ -2,6 +2,9 @@ import os
 import xml.etree.ElementTree as ET
 from crop import crop
 import numpy as np
+from PIL import Image
+import scipy
+import random
 
 vocPath = os.path.abspath(os.path.join(os.getcwd(),os.path.pardir,'dataset'))
 
@@ -62,19 +65,30 @@ class image():
             ymin = int(bndbox.find('ymin').text)
             xmax = int(bndbox.find('xmax').text)
             ymax = int(bndbox.find('ymax').text)
-            objif = objInfo(xmin/448.0,ymin/448.0,np.sqrt(ymax-ymin)/448.0,np.sqrt(xmax-xmin).448.0,class_num)
+            h = ymax-ymin
+            w = xmax-xmin
+            #objif = objInfo(xmin/448.0,ymin/448.0,np.sqrt(ymax-ymin)/448.0,np.sqrt(xmax-xmin)/448.0,class_num)
 
             #which cell this obj falls into
-            centerx = (xmax+xmin)/2
-            centery = (ymax+ymin)/2
+            centerx = (xmax+xmin)/2.0
+            centery = (ymax+ymin)/2.0
             newx = (448.0/width)*centerx
             newy = (448.0/height)*centery
 
+            h_new = h * (448.0 / height)
+            w_new = w * (448.0 / width)
 
             cell_size = 448.0/side
-            row = int(newx / cell_size)
-            col = int(newy / cell_size)
+            col = int(newx / cell_size)
+            row = int(newy / cell_size)
+            #print "row,col:",row,col,centerx,centery
 
+            cell_left = col * cell_size
+            cell_top = row * cell_size
+            cord_x = (newx - cell_left) / cell_size
+            cord_y = (newy - cell_top)/ cell_size
+
+            objif = objInfo(cord_x,cord_y,np.sqrt(h_new/448.0),np.sqrt(w_new/448.0),class_num)
             self.boxes[row][col].has_obj = True
             self.boxes[row][col].objs.append(objif)
 
@@ -105,7 +119,7 @@ def prepareBatch(start,end,imageNameFile,vocPath):
     return imageList
 
 #Prepare training data
-def generate_batch_data(vocPath,imageNameFile):
+def generate_batch_data(vocPath,imageNameFile,batch_size):
     """
     Args:
       vocPath: the path of pascal voc data
@@ -118,35 +132,61 @@ def generate_batch_data(vocPath,imageNameFile):
     class_num = 20
 
     while 1:
-        for i in range(0,sample_number):
-            imageList = prepareBatch(i,i+1,imageNameFile,vocPath)
-            image_list = []
-            box_list = []
+        #shuffle data
+        
+        f = open(imageNameFile)
+        lines = f.readlines()
+        random.shuffle(lines)
+        f.close()
+        f = open(imageNameFile,'w')
+        for line in lines:
+            f.write(line)
+        f.close()
 
-            image_array = crop(imageList[0].imgPath,resize_width=512,resize_height=512,new_width=448,new_height=448)
+        for i in range(0,sample_number,batch_size):
+            imageList = prepareBatch(i,i+batch_size,imageNameFile,vocPath)
 
-            y = []
-            for i in range(7):
-                for j in range(7):
-                    box = imageList[0].boxes[i][j]
-                    if(box.has_obj):
-                        obj = box.objs[0]
+            images = []
+            boxes = []
 
-                        y.append(obj.x)
-                        y.append(obj.y)
-                        y.append(obj.h)
-                        y.append(obj.w)
+            for image in imageList:
+                image_array = crop(image.imgPath,resize_width=512,resize_height=512,new_width=448,new_height=448)
+                #image_array = np.expand_dims(image_array,axis=0)
 
-                        labels = [0]*20
-                        labels[obj.class_num] = 1
-                        y.extend(labels)
-                    else:
-                        y.extend([0]*24)
-            y = np.asarray(y)
-            #yield images,y
+                y = []
+                for i in range(7):
+                    for j in range(7):
+                        box = image.boxes[i][j]
+                        '''
+                        ############################################################
+                        #x,y,h,w,one_hot class label vector[0....0],objectness{0,1}#
+                        ############################################################
+                        '''
+                        if(box.has_obj):
+                            obj = box.objs[0]
+
+                            y.append(obj.x)
+                            y.append(obj.y)
+                            y.append(obj.h)
+                            y.append(obj.w)
+
+                            labels = [0]*20
+                            labels[obj.class_num] = 1
+                            y.extend(labels)
+                            y.append(1) #objectness
+                        else:
+                            y.extend([0]*25)
+                y = np.asarray(y)
+                #y = np.reshape(y,[1,y.shape[0]])
+
+                images.append(image_array)
+                boxes.append(y)
+
+            #return np.asarray(images),np.asarray(boxes)
+            yield np.asarray(images),np.asarray(boxes)
 
 if __name__ == '__main__':
-    imageNameFile='/Users/lixueting/Documents/researches/Darknet.keras/dataset/train_val/imageNames.txt'
+    imageNameFile='/Users/lixueting/Documents/researches/Darknet.keras/dataset/train_val/SingleImageNameFile.txt'
     vocPath='/Users/lixueting/Documents/researches/Darknet.keras/dataset/train_val'
     '''
     imageList = prepareBatch(0,2,imageNameFile,vocPath)
@@ -165,4 +205,15 @@ if __name__ == '__main__':
                         print obj.y
                         print
     '''
-    generate_batch_data(vocPath,imageNameFile)
+    image_array,y = generate_batch_data(vocPath,imageNameFile,3)
+    print image_array.shape,y.shape
+    #print image_array[0,...,...,...].shape
+    #let's see if we read correctly
+    image_array = image_array[0,...,...,...]
+    scipy.misc.imsave('recovered.jpg', image_array)
+    # center should be in (3,3)
+    labels = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train","tvmonitor"]
+    y = y[0]
+    print "Cords: ",y[25*25:25*25+4]
+    label_index = y[25*25+4:25*25+24]
+    print labels[np.argmax(label_index)]
