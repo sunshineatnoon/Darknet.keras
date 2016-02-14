@@ -4,7 +4,6 @@ import numpy as np
 from utils.readImgFile import readImg
 from utils.DarkNet import ReadDarkNetWeights
 from utils.TinyYoloNet import ReadTinyYOLONetWeights
-from utils.crop import crop
 from utils.timer import Timer
 from utils.ReadPascalVoc2 import generate_batch_data
 
@@ -13,10 +12,12 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2
 from keras.optimizers import SGD, Adam
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.core import Flatten, Dense, Activation, Reshape, Dropout
+from keras.utils.visualize_util import plot
 
 from math import pow
 import theano
 import theano.tensor as T
+import matplotlib.pyplot as plt
 
 from PIL import Image
 from PIL import ImageDraw
@@ -26,6 +27,13 @@ from os.path import isfile, join
 
 
 def SimpleNet(darkNet,yoloNet):
+    '''
+    Args:
+      darkNet: dark net weights, to initialize the weights of the first 13 layers
+      yoloNet: yolo net, only need the structure parameters here
+    Returns:
+      model: A keras model which defines Tiny Yolo Net, with its first 13 layers' weights initialized by darknet
+    '''
     model = Sequential()
 
     #Convolution Layer 2 & Max Pooling Layer 3
@@ -65,33 +73,70 @@ def SimpleNet(darkNet,yoloNet):
         #model.add(Activation('sigmoid'))
     return model
 
+def get_activations(model, layer, X_batch):
+    '''
+    Args:
+      model: keras model which defines net architecture
+      layer: which layer's activation you want
+      X_batch: input data for the forward pass
+    Returns:
+      activations: The activations in layer layer
+    '''
+    get_activations = theano.function([model.layers[0].input], model.layers[layer].get_output(train=False), allow_input_downcast=True)
+    activations = get_activations(X_batch) # same result as above
+    return activations
+
 def custom_loss(y_true,y_pred):
+    '''
+    Args:
+      y_true: Ground Truth output
+      y_pred: Predicted output
+      The forms of these two vectors are:
+      ######################################
+      ## x,y,h,w,p1,p2,...,p20,objectness ##
+      ######################################
+    Returns:
+      The loss caused by y_pred
+    '''
+    y1 = y_pred
+    y2 = y_true
+    loss = 0.0
+
     scale_vector = []
     scale_vector.extend([2]*4)
     scale_vector.extend([1]*20)
-    scale_vector.append(0)
-    scale_vector = scale_vector * 49
     scale_vector = np.reshape(np.asarray(scale_vector),(1,len(scale_vector)))
 
-    #Only calculate cords loss here, so mask all classfication predictions to zeros
-    y_pred_masked = y_pred * scale_vector
-    y_true_maksed = y_true * scale_vector
-    #kick out all cells that don't have any objects
-    keep = y_true_maksed > 0
-    y_pred_cal = y_pred_masked * keep
-    loss = T.sum(T.square(y_true_maksed - y_pred_cal))
+    for i in range(49):
+        y1_piece = y1[:,i*25:i*25+24]
+        y2_piece = y2[:,i*25:i*25+24]
 
-    #prediction loss
-    scale_vector = []
-    scale_vector.extend([0]*24)
-    scale_vector.append(1)
-    scale_vector = scale_vector * 49
-    scale_vector = np.reshape(np.asarray(scale_vector),(1,len(scale_vector)))
-    #only calculate classification loss here so kick out all cords information
-    y_pred_classification = y_pred * scale_vector
-    y_true_classification = y_true * scale_vector
-    loss = loss + T.sum(T.square(y_pred_classification - y_true_classification))
+        y1_piece = y1_piece * scale_vector
+        y2_piece = y2_piece * scale_vector
+
+        loss_piece = T.sum(T.square(y1_piece - y2_piece),axis=1)
+        loss = loss + loss_piece * y2[:,i*25+24]
+        loss = loss + T.square(y2[:,i*25+24] - y1[:,i*25+24])
+
+    loss = T.sum(loss)
     return loss
+
+class LossHistory(keras.callbacks.Callback):
+    '''
+    Use LossHistory to record loss
+    '''
+    def on_train_begin(self, logs={}):
+        self.losses = []
+
+    def on_batch_end(self, batch, logs={}):
+        self.losses.append(logs.get('loss'))
+
+def draw_loss_func(loss):
+    plt.plot(loss)
+    plt.xlabel('iteration')
+    plt.ylabel('training loss')
+    plt.title('Training Loss history')
+    plt.savefig('loss.jpg')
 
 darkNet = ReadDarkNetWeights(os.path.join(os.getcwd(),'weights/darknet.weights'))
 yoloNet = ReadTinyYOLONetWeights(os.path.join(os.getcwd(),'weights/yolo-tiny.weights'))
@@ -114,15 +159,24 @@ model = SimpleNet(darkNet,yoloNet)
 #sgd = SGD(lr=1e-4, decay=1e-6, momentum=0.9, nesterov=True)
 adam = Adam(lr=1e-4, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 model.compile(optimizer=adam, loss=custom_loss)
-
+plot(model, to_file='model.png')
+'''
+image = readImg(os.path.join(os.getcwd(),'Yolo_dog.img'),h=448,w=448)
+image = np.expand_dims(image, axis=0)
+act = get_activations(model, 13,image)
+print act[0]
+'''
 vocPath= os.path.join(os.getcwd(),'dataset/train_val')
 imageNameFile= os.path.join(vocPath,'imageNames.txt')
-model.fit_generator(generate_batch_data(vocPath,imageNameFile,16),samples_per_epoch=315,nb_epoch=5,verbose=1)
-#image = readImg(os.path.join(os.getcwd(),'Yolo_dog.img'),h=448,w=448)
-#image = np.expand_dims(image,axis=0)
-#out = model.predict(image)
-#print out.shape
+history = LossHistory()
+
+print 'Start Training...'
+model.fit_generator(generate_batch_data(vocPath,imageNameFile,16),samples_per_epoch=4992,nb_epoch=10,verbose=1,callbacks=[history])
+
+print 'Saving loss graph'
+draw_loss_func(history.losses)
+
+print 'Saving weights and model architecture'
 json_string = model.to_json()
 open('Tiny_Yolo_Architecture.json','w').write(json_string)
-model.save_weights('Tiny_Yolo_weights.h5')
-
+model.save_weights('Tiny_Yolo_weights.h5',overwrite=True)

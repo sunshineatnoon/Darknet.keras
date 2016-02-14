@@ -1,6 +1,6 @@
 import os
 import xml.etree.ElementTree as ET
-from crop import crop
+from crop import crop_detection
 import numpy as np
 from PIL import Image
 import scipy
@@ -130,27 +130,21 @@ def generate_batch_data(vocPath,imageNameFile,batch_size):
     """
     sample_number = 5000 #use only 5000 images so we have more batchsize choices
     class_num = 20
+    #Read all the data once and dispatch them out as batches to save time
+    TotalimageList = prepareBatch(0,sample_number,imageNameFile,vocPath)
 
     while 1:
-        #shuffle data
-        
-        f = open(imageNameFile)
-        lines = f.readlines()
-        random.shuffle(lines)
-        f.close()
-        f = open(imageNameFile,'w')
-        for line in lines:
-            f.write(line)
-        f.close()
+        batches = sample_number // batch_size
 
-        for i in range(0,sample_number,batch_size):
-            imageList = prepareBatch(i,i+batch_size,imageNameFile,vocPath)
-
+        for i in range(batches):
             images = []
             boxes = []
-
-            for image in imageList:
-                image_array = crop(image.imgPath,resize_width=512,resize_height=512,new_width=448,new_height=448)
+            sample_index = np.random.choice(sample_number,batch_size,replace=True)
+            #sample_index = [3]
+            for ind in sample_index:
+                image = TotalimageList[ind]
+                #print image.imgPath
+                image_array = crop_detection(image.imgPath,new_width=448,new_height=448)
                 #image_array = np.expand_dims(image_array,axis=0)
 
                 y = []
@@ -181,7 +175,6 @@ def generate_batch_data(vocPath,imageNameFile,batch_size):
 
                 images.append(image_array)
                 boxes.append(y)
-
             #return np.asarray(images),np.asarray(boxes)
             yield np.asarray(images),np.asarray(boxes)
 
@@ -205,7 +198,7 @@ if __name__ == '__main__':
                         print obj.y
                         print
     '''
-    image_array,y = generate_batch_data(vocPath,imageNameFile,3)
+    image_array,y = generate_batch_data(vocPath,imageNameFile,1)
     print image_array.shape,y.shape
     #print image_array[0,...,...,...].shape
     #let's see if we read correctly
@@ -214,6 +207,8 @@ if __name__ == '__main__':
     # center should be in (3,3)
     labels = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train","tvmonitor"]
     y = y[0]
-    print "Cords: ",y[25*25:25*25+4]
-    label_index = y[25*25+4:25*25+24]
-    print labels[np.argmax(label_index)]
+    for i in range(49):
+        if(y[i*25+24] > 0):
+            print "Cords: ",y[i*25:i*25+4]
+            label_index = y[i*25+4:i*25+24]
+            print labels[np.argmax(label_index)]

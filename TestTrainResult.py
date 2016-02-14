@@ -1,7 +1,7 @@
 from keras.models import model_from_json
 import theano.tensor as T
 from utils.readImgFile import readImg
-from utils.crop import crop
+from utils.crop import crop_detection
 import os
 import numpy as np
 from PIL import Image
@@ -26,7 +26,7 @@ model.load_weights('Tiny_Yolo_weights.h5')
 
 #Predict output
 #image = readImg(os.path.join(os.getcwd(),'Yolo_dog.img'),h=448,w=448)
-img = crop(os.path.join(os.getcwd(),'images/car.jpg'),resize_width=512,resize_height=512,new_width=448,new_height=448)
+img = crop_detection(os.path.join(os.getcwd(),'images/car.jpg'),new_width=448,new_height=448)
 img = np.expand_dims(img, axis=0)
 out = model.predict(img)
 out = out[0]
