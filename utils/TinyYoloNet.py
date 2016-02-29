@@ -50,7 +50,7 @@ class Tiny_YOLO:
         self.layers.append(connected_layer(0,0,0,0,0,256,4096))
         self.layers.append(layer(0,0,0,0,0,"DROPOUT"))
         self.layers.append(layer(0,0,0,0,0,"LEAKY"))
-        self.layers.append(connected_layer(0,0,0,0,0,4096,1176))
+        self.layers.append(connected_layer(0,0,0,0,0,4096,1225))
 
 def ReadTinyYOLONetWeights(weight_path):
     YOLO = Tiny_YOLO()

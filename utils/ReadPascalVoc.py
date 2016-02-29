@@ -61,7 +61,7 @@ class image():
             ymin = int(bndbox.find('ymin').text)
             xmax = int(bndbox.find('xmax').text)
             ymax = int(bndbox.find('ymax').text)
-            objif = objInfo(xmin/448.0,ymin/448.0,np.sqrt(ymax-ymin)/(448.0),np.sqrt(xmax-xmin)/448.0,class_num)
+            objif = objInfo(xmin,ymin,ymax-ymin,xmax-xmin,class_num)
 
             #which cell this obj falls into
             centerx = (xmax+xmin)/2
@@ -104,47 +104,36 @@ def prepareBatch(start,end,imageNameFile,vocPath):
     return imageList
 
 #Prepare training data
-def generate_batch_data(vocPath,imageNameFile,batchsize):
+def generate_batch_data(vocPath,imageNameFile):
     """
     Args:
       vocPath: the path of pascal voc data
       imageNameFile: the path of the file of image names
       batchsize: batch size, sample_number should be divided by batchsize
     Funcs:
-      A data generator generates training batch indefinitely
+      A data generator generates training data one by one indefinitely
     """
-    sample_number = 5000 #use only 5000 images so we have more batchsize choices
-    assert(sample_number%batchsize==0,"Sample Number shoule be divisible by batch size !")
-
+    sample_number = 5000
     while 1:
-        for i in range(0,sample_number,batchsize):
-            imageList = prepareBatch(i,i+batchsize,imageNameFile,vocPath)
-            image_list = []
-            box_list = []
-
-            #generate image array
+        imageList = prepareBatch(0,5000,imageNameFile,vocPath)
+        for i in range(0,1):
             for imageInfo in imageList:
                 image_array = crop(imageInfo.imgPath,resize_width=512,resize_height=512,new_width=448,new_height=448)
-                image_list.append(image_array)
-                box_list.append(imageInfo.boxes)
-            images = np.asarray(image_list)
-            box_list = np.asarray(box_list)
-            
-            print images[0,0,0:10,0:10]
-            box = box_list[0]
-            for i in range(7):
-                for j in range(7):
-                    if(box[i][j].has_obj):
-                        print i,j
-                        objs = box[i][j].objs
-                        for obj in objs:
-                            print obj.class_num
-                            print obj.x
-                            print obj.y
-                            print
-            #return
-
-            yield images,box_list
+                box = imageInfo.boxes
+                box = np.asarray(box)
+                yield image_array,box
+                '''
+                for i in range(7):
+                    for j in range(7):
+                        if(box[i][j].has_obj):
+                            print i,j
+                            objs = box[i][j].objs
+                            for obj in objs:
+                                print obj.class_num
+                                print obj.x
+                                print obj.y
+                                print
+                '''
 
 if __name__ == '__main__':
     imageNameFile='/home/xuetingli/Documents/YOLO.keras/dataset/train_val/imageNames.txt'
@@ -166,4 +155,4 @@ if __name__ == '__main__':
                         print obj.y
                         print
     '''
-    generate_batch_data(vocPath,imageNameFile,5)
+    generate_batch_data(vocPath,imageNameFile)

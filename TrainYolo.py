@@ -6,6 +6,7 @@ from utils.DarkNet import ReadDarkNetWeights
 from utils.TinyYoloNet import ReadTinyYOLONetWeights
 from utils.timer import Timer
 from utils.ReadPascalVoc2 import generate_batch_data
+from utils.MeasureAccuray import MeasureAcc
 
 from keras.models import Sequential
 from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2D, AveragePooling2D
@@ -13,10 +14,13 @@ from keras.optimizers import SGD, Adam
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.core import Flatten, Dense, Activation, Reshape, Dropout
 from keras.utils.visualize_util import plot
+import keras
 
 from math import pow
 import theano
 import theano.tensor as T
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 from PIL import Image
@@ -131,7 +135,38 @@ class LossHistory(keras.callbacks.Callback):
     def on_batch_end(self, batch, logs={}):
         self.losses.append(logs.get('loss'))
 
+class TestAcc(keras.callbacks.Callback):
+    '''
+    calculate test accuracy after each epoch
+    '''
+
+    def on_epoch_end(self,epoch, logs={}):
+        #Save check points
+        filepath = 'weights'+str(epoch)+'.hdf5'
+        print('Epoch %03d: saving model to %s' % (epoch, filepath))
+        self.model.save_weights(filepath, overwrite=True)
+
+        #Test test accuracy
+        vocPath = os.path.join(os.getcwd(),'dataset/train_val')
+        imageNameFile = os.path.join(os.getcwd(),'dataset/train_val/shortlist.txt')
+        sample_number = 200
+        acc,re = MeasureAcc(self.model,sample_number,vocPath,imageNameFile)
+        print 'Accuracy and recall on train data is: %3f,%3f'%(acc,re)
+
+        #Test train accuracy
+        vocPath = os.path.join(os.getcwd(),'dataset/VOC2012')
+        imageNameFile = os.path.join(os.getcwd(),'shortlist_train.txt')
+        sample_number = 200
+        acc,re = MeasureAcc(self.model,sample_number,vocPath,imageNameFile)
+        print 'Accuracy and recall on test data is: %3f,%3f'%(acc,re)
+
+class printbatch(keras.callbacks.Callback):
+    def on_batch_end(self,epoch,logs={}):
+        print(logs)
+
 def draw_loss_func(loss):
+    print 'Loss Length is:',len(loss)
+    loss = loss[100:]
     plt.plot(loss)
     plt.xlabel('iteration')
     plt.ylabel('training loss')
@@ -156,22 +191,19 @@ for i in range(darkNet.layer_number):
 
 model = SimpleNet(darkNet,yoloNet)
 
-#sgd = SGD(lr=1e-4, decay=1e-6, momentum=0.9, nesterov=True)
+#sgd = SGD(lr=1e-6, decay=1e-6, momentum=0.9, nesterov=True)
 adam = Adam(lr=1e-4, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+#rmp = keras.optimizers.RMSprop(lr=1e-4, rho=0.9, epsilon=1e-06)
 model.compile(optimizer=adam, loss=custom_loss)
 plot(model, to_file='model.png')
-'''
-image = readImg(os.path.join(os.getcwd(),'Yolo_dog.img'),h=448,w=448)
-image = np.expand_dims(image, axis=0)
-act = get_activations(model, 13,image)
-print act[0]
-'''
+
 vocPath= os.path.join(os.getcwd(),'dataset/train_val')
-imageNameFile= os.path.join(vocPath,'imageNames.txt')
+imageNameFile= os.path.join(os.getcwd(),'dataset/train_val/imageNames.txt')
 history = LossHistory()
+testAcc = TestAcc()
 
 print 'Start Training...'
-model.fit_generator(generate_batch_data(vocPath,imageNameFile,16),samples_per_epoch=4992,nb_epoch=10,verbose=1,callbacks=[history])
+model.fit_generator(generate_batch_data(vocPath,imageNameFile,batch_size=16),samples_per_epoch=4992,nb_epoch=2,verbose=0,callbacks=[history,testAcc])
 
 print 'Saving loss graph'
 draw_loss_func(history.losses)
@@ -179,4 +211,4 @@ draw_loss_func(history.losses)
 print 'Saving weights and model architecture'
 json_string = model.to_json()
 open('Tiny_Yolo_Architecture.json','w').write(json_string)
-model.save_weights('Tiny_Yolo_weights.h5',overwrite=True)
+model.save_weights('Tiny_Yolo_weights_iter_voc07_train.h5',overwrite=True)

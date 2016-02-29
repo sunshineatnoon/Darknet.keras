@@ -75,11 +75,6 @@ model = SimpleNet(darkNet)
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(optimizer=sgd, loss='categorical_crossentropy')
 
-image = readImg(os.path.join(os.getcwd(),'Yolo_dog.img'),h=448,w=448)
-image = np.expand_dims(image, axis=0)
-act = get_activations(model, 13,image)
-print act[0]
-'''
 out = model.predict(image)
 prediction = out[0]
 
@@ -91,4 +86,3 @@ for i in range(len(lines)): lines[i] = lines[i].strip("\n")
 indices = prediction.argsort()[-10:][::-1]
 for i in indices:
     print lines[i],": %f"%prediction[i]
-'''

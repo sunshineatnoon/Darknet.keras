@@ -3,8 +3,10 @@ import xml.etree.ElementTree as ET
 from crop import crop_detection
 import numpy as np
 from PIL import Image
+from PIL import ImageDraw
 import scipy
 import random
+
 
 vocPath = os.path.abspath(os.path.join(os.getcwd(),os.path.pardir,'dataset'))
 
@@ -81,7 +83,7 @@ class image():
             cell_size = 448.0/side
             col = int(newx / cell_size)
             row = int(newy / cell_size)
-            #print "row,col:",row,col,centerx,centery
+           # print "row,col:",row,col,centerx,centery
 
             cell_left = col * cell_size
             cell_top = row * cell_size
@@ -119,7 +121,7 @@ def prepareBatch(start,end,imageNameFile,vocPath):
     return imageList
 
 #Prepare training data
-def generate_batch_data(vocPath,imageNameFile,batch_size):
+def generate_batch_data(vocPath,imageNameFile,batch_size,sample_number):
     """
     Args:
       vocPath: the path of pascal voc data
@@ -128,14 +130,12 @@ def generate_batch_data(vocPath,imageNameFile,batch_size):
     Funcs:
       A data generator generates training batch indefinitely
     """
-    sample_number = 5000 #use only 5000 images so we have more batchsize choices
     class_num = 20
     #Read all the data once and dispatch them out as batches to save time
     TotalimageList = prepareBatch(0,sample_number,imageNameFile,vocPath)
 
     while 1:
         batches = sample_number // batch_size
-
         for i in range(batches):
             images = []
             boxes = []
@@ -179,8 +179,8 @@ def generate_batch_data(vocPath,imageNameFile,batch_size):
             yield np.asarray(images),np.asarray(boxes)
 
 if __name__ == '__main__':
-    imageNameFile='/Users/lixueting/Documents/researches/Darknet.keras/dataset/train_val/SingleImageNameFile.txt'
-    vocPath='/Users/lixueting/Documents/researches/Darknet.keras/dataset/train_val'
+    imageNameFile='/home/media/Documents/YOLO.keras/dataset/train_val/SingleImageNameFile.txt'
+    vocPath='/home/media/Documents/YOLO.keras/dataset/train_val'
     '''
     imageList = prepareBatch(0,2,imageNameFile,vocPath)
     for i in range(0,2):
@@ -198,17 +198,58 @@ if __name__ == '__main__':
                         print obj.y
                         print
     '''
-    image_array,y = generate_batch_data(vocPath,imageNameFile,1)
+    image_array,y = generate_batch_data(vocPath,imageNameFile,1,sample_number=16)
     print image_array.shape,y.shape
     #print image_array[0,...,...,...].shape
     #let's see if we read correctly
     image_array = image_array[0,...,...,...]
+    #scipy.misc.imsave('recovered.jpg', image_array)
+    print image_array.shape
+    image_array = (image_array + 1.0) / 2.0 * 225.0
+    image_array = np.rollaxis(image_array,2,0)
+    image_array = np.rollaxis(image_array,2,0)
+    print image_array.shape
+
     scipy.misc.imsave('recovered.jpg', image_array)
     # center should be in (3,3)
     labels = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train","tvmonitor"]
-    y = y[0]
+    out = y[0]
+
+    imgPath = os.path.join(os.getcwd(),'recovered.jpg')
+    img = Image.open(imgPath)
+    image_arr,img_resize = crop_detection(imgPath,448,448,save=True)
+    drawable = ImageDraw.Draw(img_resize)
+    #Draw orignal bounding boxes
+
+    count = 0
     for i in range(49):
-        if(y[i*25+24] > 0):
-            print "Cords: ",y[i*25:i*25+4]
-            label_index = y[i*25+4:i*25+24]
-            print labels[np.argmax(label_index)]
+        preds = out[i*25:(i+1)*25]
+        if(preds[24] > 0.3):
+            count = count + 1
+            #print preds[0:4],preds[24]
+            row = i/7
+            col = i%7
+            print row,col
+            centerx = 64 * col + 64 * preds[0]
+            centery = 64 * row + 64 * preds[1]
+
+            h = preds[2] * preds[2]
+            h = h * 448.0
+            w = preds[3] * preds[3]
+            w = w * 448.0
+
+            left = centerx - w/2.0
+            right = centerx + w/2.0
+            up = centery - h/2.0
+            down = centery + h/2.0
+
+            if(left < 0): left = 0
+            if(right > 448): right = 447
+            if(up < 0): up = 0
+            if(down > 448): down = 447
+
+            drawable.rectangle([left,up,right,down],outline='red')
+            print 'Class is: ',labels[np.argmax(preds[4:24])]
+            print np.max(preds[4:24])
+    print count
+    img_resize.save(os.path.join(os.getcwd(),'recover.jpg'))

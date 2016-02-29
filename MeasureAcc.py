@@ -50,7 +50,7 @@ def Acc(imageList,model,sample_number=5000,thresh=0.3):
 
     count = 0
     for image in imageList:
-	    count += 1
+	count += 1
         print 'Image number:', count
         #Get prediction from neural network
         img = crop_detection(image.imgPath,new_width=448,new_height=448)
@@ -92,7 +92,7 @@ def Acc(imageList,model,sample_number=5000,thresh=0.3):
                         true_class = obj.class_num
                         if(true_class == class_num):
                             correct += 1
-			                break
+	                    break
 
 
     return correct*1.0/object_num
@@ -126,14 +126,23 @@ def Recall(imageList,model,sample_number=5000,thresh=0.3):
                             correct += 1
     return correct*1.0/obj_num
 
-model = model_from_json(open('Tiny_Yolo_Architecture.json').read(),custom_objects={'custom_loss':custom_loss})
-model.load_weights('Tiny_Yolo_weights.h5')
+def MeasureAcc(model,sample_number,vocPath,imageNameFile):
+    imageList = prepareBatch(0,sample_number,imageNameFile,vocPath)
+    acc = Acc(imageList,model)
+    re = Recall(imageList,model)
 
-#Measure Training Accuracy
-sample_number = 5000
-imageNameFile=os.path.join(os.getcwd(),'dataset/train_val/shortlist.txt')
-vocPath=os.path.join(os.getcwd(),'dataset/train_val')
+    return acc,re
+
+model = model_from_json(open('Tiny_Yolo_Architecture.json').read(),custom_objects={'custom_loss':custom_loss})
+model.load_weights('Tiny_Yolo_weights_iter2.h5')
+
+#Measure Test Accuracy
+sample_number = 1000
+vocPath= os.path.join(os.getcwd(),'dataset/VOC2012')
+imageNameFile= os.path.join(os.getcwd(),'dataset/VOC2012/trainval.txt')
 
 imageList = prepareBatch(0,sample_number,imageNameFile,vocPath)
-#print "Accuracy is: ",Acc(imageList,model)
-print "Recall is: ",Recall(imageList,model)
+acc = Acc(imageList,model)
+re = Recall(imageList,model)
+
+print "Accuracy and Recall are: ",acc,re
