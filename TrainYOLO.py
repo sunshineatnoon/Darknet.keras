@@ -122,7 +122,6 @@ def custom_loss(y_true,y_pred):
         loss = loss + loss_piece * y2[:,i*25+24]
         loss = loss + T.square(y2[:,i*25+24] - y1[:,i*25+24])
 
-    #loss = T.sum(loss)
     loss = T.sum(loss)
     return loss
 
@@ -147,14 +146,14 @@ class TestAcc(keras.callbacks.Callback):
         print('Epoch %03d: saving model to %s' % (epoch, filepath))
         self.model.save_weights(filepath, overwrite=True)
 
-        #Test train accuracy, only on 2000 samples
+        #Test test accuracy
         vocPath = os.path.join(os.getcwd(),'dataset/train_val')
         imageNameFile = os.path.join(os.getcwd(),'dataset/train_val/shortlist.txt')
         sample_number = 200
         acc,re = MeasureAcc(self.model,sample_number,vocPath,imageNameFile)
         print 'Accuracy and recall on train data is: %3f,%3f'%(acc,re)
 
-        #Test test accuracy, only on 200 samples
+        #Test train accuracy
         vocPath = os.path.join(os.getcwd(),'dataset/VOC2012')
         imageNameFile = os.path.join(os.getcwd(),'shortlist_train.txt')
         sample_number = 200
@@ -198,15 +197,13 @@ adam = Adam(lr=1e-4, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 model.compile(optimizer=adam, loss=custom_loss)
 plot(model, to_file='model.png')
 
-vocPath= os.path.join(os.getcwd(),'dataset/VOC2012')
-imageNameFile= os.path.join(vocPath,'trainval.txt')
+vocPath= os.path.join(os.getcwd(),'dataset/train_val')
+imageNameFile= os.path.join(os.getcwd(),'dataset/train_val/imageNames.txt')
 history = LossHistory()
 testAcc = TestAcc()
-pb = printbatch()
 
 print 'Start Training...'
-batch_size = 16
-model.fit_generator(generate_batch_data(vocPath,imageNameFile,batch_size=batch_size,sample_number=16551),samples_per_epoch=16551,nb_epoch=10,verbose=1,callbacks=[history,testAcc])
+model.fit_generator(generate_batch_data(vocPath,imageNameFile,batch_size=16),samples_per_epoch=4992,nb_epoch=2,verbose=0,callbacks=[history,testAcc])
 
 print 'Saving loss graph'
 draw_loss_func(history.losses)
@@ -214,4 +211,4 @@ draw_loss_func(history.losses)
 print 'Saving weights and model architecture'
 json_string = model.to_json()
 open('Tiny_Yolo_Architecture.json','w').write(json_string)
-model.save_weights('Tiny_Yolo_weights_12_train.h5',overwrite=True)
+model.save_weights('Tiny_Yolo_weights_iter_voc07_train.h5',overwrite=True)
