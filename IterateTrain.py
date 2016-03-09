@@ -117,7 +117,7 @@ def draw_loss_func(loss):
     plt.savefig('loss.jpg')
 
 model = model_from_json(open('Tiny_Yolo_Architecture.json').read(),custom_objects={'custom_loss':custom_loss})
-model.load_weights('weights3.hdf5')
+model.load_weights('Tiny_Yolo_weights_07_12_26720.h5')
 
 adam = Adam(lr=1e-4, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 model.compile(optimizer=adam, loss=custom_loss)
@@ -130,7 +130,7 @@ testAcc = TestAcc()
 
 print 'Start Training...'
 batch_size = 16
-model.fit_generator(generate_batch_data(vocPath,imageNameFile,batch_size=batch_size,sample_number=16551),samples_per_epoch=16551,nb_epoch=4,verbose=1,callbacks=[history,testAcc])
+model.fit_generator(generate_batch_data(vocPath,imageNameFile,batch_size=batch_size,sample_number=16551),samples_per_epoch=33102,nb_epoch=5,verbose=1,callbacks=[history,testAcc])
 
 json_string = model.to_json()
-model.save_weights('Tiny_Yolo_weights_07_12_iter2.h5')
+model.save_weights('Tiny_Yolo_weights_07_12_26720_iter2.h5')

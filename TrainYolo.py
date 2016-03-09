@@ -196,17 +196,15 @@ model = SimpleNet(darkNet,yoloNet)
 adam = Adam(lr=1e-4, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 #rmp = keras.optimizers.RMSprop(lr=1e-4, rho=0.9, epsilon=1e-06)
 model.compile(optimizer=adam, loss=custom_loss)
-plot(model, to_file='model.png')
 
 vocPath= os.path.join(os.getcwd(),'dataset/VOC2012')
 imageNameFile= os.path.join(vocPath,'trainval.txt')
 history = LossHistory()
 testAcc = TestAcc()
-pb = printbatch()
 
 print 'Start Training...'
 batch_size = 16
-model.fit_generator(generate_batch_data(vocPath,imageNameFile,batch_size=batch_size,sample_number=16551),samples_per_epoch=16551,nb_epoch=10,verbose=1,callbacks=[history,testAcc])
+model.fit_generator(generate_batch_data(vocPath,imageNameFile,batch_size=batch_size,sample_number=16551),samples_per_epoch=33102,nb_epoch=10,verbose=1,callbacks=[history,testAcc])
 
 print 'Saving loss graph'
 draw_loss_func(history.losses)
@@ -214,4 +212,4 @@ draw_loss_func(history.losses)
 print 'Saving weights and model architecture'
 json_string = model.to_json()
 open('Tiny_Yolo_Architecture.json','w').write(json_string)
-model.save_weights('Tiny_Yolo_weights_12_train.h5',overwrite=True)
+model.save_weights('Tiny_Yolo_weights_07_12_26720.h5',overwrite=True)

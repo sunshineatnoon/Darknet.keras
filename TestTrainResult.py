@@ -22,7 +22,7 @@ def custom_loss(y_true,y_pred):
 	return loss
 
 model = model_from_json(open('Tiny_Yolo_Architecture.json').read(),custom_objects={'custom_loss':custom_loss})
-model.load_weights('Tiny_Yolo_weights_07_train.h5')
+model.load_weights('weights2.hdf5')
 
 #Predict output
 #image = readImg(os.path.join(os.getcwd(),'Yolo_dog.img'),h=448,w=448)

@@ -23,7 +23,11 @@ for i in range(2):
 
     loss_piece = T.sum(T.square(y1_piece - y2_piece),axis=1)
     loss = loss + loss_piece * y2[:,i*25+24]
-    loss = loss + T.square(y2[:,i*25+24] - y1[:,i*25+24])
+    
+    closs = T.square(y2[:,i*25+24] - y1[:,i*25+24])
+    cmask = (1 - y2[:,i*25+24])*0.5 + y2[:,i*25+24]
+    closs = closs * cmask
+    loss = loss + closs
 
 loss = T.sum(loss)
 
