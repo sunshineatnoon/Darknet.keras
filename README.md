@@ -7,8 +7,9 @@ Due to image preprocess difference bewteen my reimplementaion and Darknet's, the
 
 To run the code:
 
-1. Create a folder called weights
-2. Download yolo-tiny.weights from [Darknet website](http://pjreddie.com/darknet/yolo/)
+1. Create three folders:  `weights, results, images`.
+2. Put the images you want to detect in the folder `images`.
+2. Download yolo-tiny.weights from [Darknet website](http://pjreddie.com/darknet/yolo/) and put it in the folder `weights`.
 3. Run:
    ```
    python RunTinyYolo.py
