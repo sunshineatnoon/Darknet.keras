@@ -18,3 +18,7 @@ The detection result will be saved in the results folder
 
 Notes:
 Make sure your have Theano and Keras installed
+
+**IMPORTANT WARNING**
+
+**This code is written for older version of YOLO weight, now the weight has updated to version 2.0, so the code is no longer working. In order to make it work, one has to change [ReadTinyYOLONetWeights](https://github.com/sunshineatnoon/Darknet.keras/blob/master/utils/TinyYoloNet.py#L55) to read new YOLO weight bite by bite.**
